@@ -1,0 +1,170 @@
+'''
+Python Shell Tic-Tac-Toe
+by hcgatewood
+'''
+
+#globals
+A,B,C,D,E,F,G,H,I = '7','8','9','4','5','6','1','2','3'
+boardPositions = [A,B,C,D,E,F,G,H,I]
+X,O = 'X','O'
+
+prompt = ['prompt','PROMPT']
+end = ['end','END']
+yes = ['yes','Yes','YES','y','Y','YeS','YEs','yES','yeS']
+l = '|'
+o = '_'
+ooooo = '_____'
+s = ' '
+
+class Board:
+    def __init__(self):
+        self.bs = {u:' ' for u in boardPositions}
+        
+    def give_board_input(self,piece,position):
+        self.bs[position] = piece
+        
+    def is_open(self,position):
+        if self.bs[position] == ' ': return True
+        else: return False
+        
+    def print_prompt_board(self):
+        print('')
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(s,7,s,l,s,8,s,l,s,9,s,s)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(ooooo,l,ooooo,l,ooooo)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(s,4,s,l,s,5,s,l,s,6,s,s)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(ooooo,l,ooooo,l,ooooo)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(s,1,s,l,s,2,s,l,s,3,s,s)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print('')
+        
+    def print_state(self):
+        clear()
+        print('')
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(s,self.bs[A],s,l,s,self.bs[B],s,l,s,self.bs[C],s,s)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(ooooo,l,ooooo,l,ooooo)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(s,self.bs[D],s,l,s,self.bs[E],s,l,s,self.bs[F],s,s)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(ooooo,l,ooooo,l,ooooo)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(s,self.bs[G],s,l,s,self.bs[H],s,l,s,self.bs[I],s,s)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print(s,s,s,l,s,s,s,l,s,s,s)
+        print('')
+
+class UI:
+    #p1 = X, p2 = O
+    def __init__(self,pn1,pn2,score,firstTurn):
+        self.turn = firstTurn
+        self.firstTurn = firstTurn
+        self.pn1 = pn1
+        self.pn2 = pn2
+        self.board = Board()
+        self.board.print_prompt_board()
+        self.score = score
+        
+    def win_condition(self):
+        bs = self.board.bs
+        for u in [X,O]:
+            if u==bs[A]==bs[B]==bs[C] or\
+               u==bs[D]==bs[E]==bs[F] or\
+               u==bs[G]==bs[H]==bs[I] or\
+               u==bs[A]==bs[D]==bs[G] or\
+               u==bs[B]==bs[E]==bs[H] or\
+               u==bs[C]==bs[F]==bs[I] or\
+               u==bs[A]==bs[E]==bs[I] or\
+               u==bs[C]==bs[E]==bs[G]:
+                if u == X: return self.pn1
+                if u == O: return self.pn2
+        for pos in self.board.bs:
+            if self.board.is_open(pos): return False
+        return 'Cat'
+    
+    def win_screen(self,winner):
+        self.score[winner]+=1
+        print('')
+        print('')
+        print('')
+        print(winner, 'wins!')
+        print('')
+        again = input('Play again? ')
+        print('')
+        print('')
+        print('')
+        if again in yes:
+            return game_restart(self.pn1,self.pn2,self.score,self.firstTurn)
+        
+    def update_board_loop(self):
+        if self.win_condition() is not False:
+            self.win_screen(self.win_condition())
+
+        else:
+            if self.turn == 1:
+                print(self.pn1, '(X)',)
+                pos = input('type the placement for your piece: ')
+                if pos in prompt:
+                    self.board.print_prompt_board()
+                elif pos in end:
+                    return end_game()
+                elif pos in boardPositions and self.board.is_open(pos):
+                    self.board.give_board_input(X,pos)
+                    self.turn = 2
+                    self.board.print_state()
+                return self.update_board_loop()
+            if self.turn == 2:
+                print(self.pn2, '(O)',)
+                pos = input('type the placement for your piece: ')
+                if pos in prompt:
+                    self.board.print_prompt_board()
+                elif pos in end:
+                    return end_game()
+                elif pos in boardPositions and self.board.is_open(pos):
+                    self.board.give_board_input(O,pos)
+                    self.turn = 1
+                    self.board.print_state()
+                return self.update_board_loop()
+
+def new_game():
+    print('')
+    print('PYTHON TIC-TAC-TOE!')
+    print("Type 'prompt' to see the letter choices and 'end' to end the game")
+    print('')
+    pn1 = input('Input player one name: ')
+    if pn1 in end: return end_game()
+    pn2 = input('Input player two name: ')
+    if pn2 in end: return end_game()
+    score = {pn1:0,pn2:0,'Cat':0}
+    return game_restart(pn1,pn2,score,2)
+
+def game_restart(pn1,pn2,score,firstTurn):
+    clear()
+    try:
+        pn1 = game.UI.pn1
+        pn2 = game.UI.pn2
+        firstTurn = game.UI.firstTurn
+    except: pass
+    print('')
+    for player in score: print(player, 'has', score[player])
+    if firstTurn == 1: firstTurn = 2
+    else: firstTurn = 1
+    game = UI(pn1,pn2,score,firstTurn)
+    game.update_board_loop()
+    
+def end_game():
+    print('')
+    print('')
+    print('')
+
+def clear():
+    print('','','','','',sep='\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+
+#final global
+N,n = new_game,new_game
