@@ -1,0 +1,84 @@
+'''
+Half-Birthday Calculator
+'''
+def create_translation_dict():
+	months = ['January','February','March','April','May','June','July','August','September','October','November','December']
+	monthLengths = [31,28,31,30,31,30,31,31,30,31,30,31]
+	
+	# [0, 1+31, 1+31+28, 1+31+28+31, ..., 366]
+	monthEndsList = [0]
+	end = 1
+	for u in monthEndsList:
+		end += monthLengths
+		monthEndsList.append(end)
+
+	# {1+31:'January', 1+31+28:'February', 1+31+28+31:'March', ..., 366:'December'}
+	monthEndsDict = dict()
+	for u in range(1,13):
+		monthEndsDict[monthEndsList[u]] = months[u-1]
+
+	# {1:'January 1', 2:'January 2', 3:'January 3', ..., 32:'February 1', ..., 365:'December 31'}
+	MDYT_day = {u:'' for u in range(1,366)}
+	for day in MDYT_day:
+		for u in range(13):
+			if day >= monthEndsList[u] and day < monthEndsList[u+1]:
+				MDYT_day[day] = months[u] + str(day-monthEndsList[u])
+
+	return MDYT_day
+
+
+def input_MDYT():
+	print('Input data concerning your birthday...')
+	print('')
+
+	bMonth,bDay,bYear,bTime = 0
+	while bMonth not in range(1,13) or bDay not in range(1,31):
+		MDY = input('Your birthday (in mm/dd/yyyy form): ')
+		bMonth = MDY[0:2]
+		bDay = MDY[3,5]
+		bYear = MDY[7,11]
+	while bTime not in ['AM','PM']:
+		bTime = input('Time of day (AM or PM): ')
+
+	return (bMonth,bDay,bYear,bTime)
+
+
+
+def print_MDYT(bMonth,bDay,bYear,bTime):
+	print('')
+	print('')
+	print('Your half birthday is ',bMonth,' ',bDay,', ',bYear+'!', sep='')
+
+
+
+
+def MDYT_to_day(bMonth,bDay,bYear,bTime):
+	MDYT_day = create_translation_dict()
+	for u in range(1,366):
+		if MDYT_day[u] == bMonth + bDay:
+			day = u
+			break
+
+	return day
+
+
+
+def day_to_MDYT(day):
+	MDYT_day = create_translation_dict()
+	MDYT = MDYT_day[day]
+
+	return MDYT
+
+
+def day_to_halfDay(day,bTime):
+	if bTime == 'PM':
+		day += 1
+	halfDay = (day+182)%365
+
+	return halfDay
+
+
+def halfDay_to_day(halfDay,bTime):
+	if bTime == 'PM':
+		day -= 1
+	day = (halfDay+182)%365
