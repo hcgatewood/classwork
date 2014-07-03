@@ -1,0 +1,197 @@
+'''
+Crowdsourced Movie Review
+Algorithm testing
+by hcgatewood
+'''
+
+from random import choice
+
+'''
+Classes
+'''
+class Globals:
+	def __init__(self):
+		self.trustThreshold = .6
+		self.wightSet = set()
+		self.names = [
+				'Hunter','Matt','Andy','Luke','Daniel','Linda','Rick','Cindy',
+				'Chris','Lisa','Aaron','Eryn','J Tayler','Maggie','Olivia',
+				'Emily','Angus','Pam','Kelly']
+
+		self.movies = [
+				'Transformers 4','22 Jump Street','Edge of Tomorrow',
+				'X-Men Origins','Django','Monuments Men','Lone Survivor',
+				'Pink Panther','Get Smart','Lone Ranger','Taken','The Grey',
+				'Star Wars 1','Jaws','21 Jump Street','Narnia 1']
+
+		self.ratingCodes = {0:"Haven't seen it",1:'Hate it',2:'Love it'}
+		self.nameToWight = dict()
+		self.seenItString = "You've already rated this title"
+
+glo = Globals()
+
+class Wight:
+	def __init__(self,name,ratingDict):
+		self.name = name
+		self.ratings = ratingDict # Dict in form {[movieName]:[intRating]}
+		self.comparisons = dict() # Dict in form {[Wight].name:percentage}
+		self.trustworthy = set() # Set of Wight classes
+		self.projections = dict() # Dict in form {[movieName]:[floatRating]}
+		glo.nameToWight[self.name] = self
+
+	def get_rating(self,movie):
+		return self.ratings[movie]
+
+	def get_comparison(self,altName):
+		return self.comparisons[altName]
+
+	def get_projection(self,movie):
+		return self.projections[movie]
+
+	def get_unseen(self):
+		return [movie for movie in self.ratings if self.get_rating(movie)==0]
+
+	def addTo_comparisons(self,altWight,yes,no):
+		self.comparisons[altWight] = yes / (yes + no)
+		return None
+
+	def addTo_trustworthy(self,altWight):
+		self.trustworthy.add(altWight)
+		return None
+
+	def addTo_projections(self,movie,yes,no):
+		if yes + no != 0 :
+			self.projections[movie] = yes / (yes + no)
+		else:
+			self.projections[movie] = 0
+		return None
+
+	def print_ratings(self):
+		print(self.name,': ',self.ratings,sep='')
+		return None
+
+	def print_comparisons(self):
+		comp = {
+				wight.name:self.get_comparison(wight)
+				for wight in self.comparisons}
+		print (self.name,': ',comp,sep='')
+		return None
+
+	def print_trustworthy(self):
+		nameList = [wight.name for wight in self.trustworthy]
+		print (self.name,': ',nameList,sep='')
+		return None
+
+	def print_projections(self):
+		proj = self.projections
+		print(self.name,': ',proj,sep='')
+		return None
+
+	def return_projection(self,movie):
+		if movie in self.projections:
+			return self.projections[movie]
+		else:
+			return glo.seenItString
+
+	def build_comparisons(self,wightSet):
+		for alt in wightSet:
+			yes = 0
+			no = 0
+			for movie in self.ratings:
+				own = self.get_rating(movie)
+				other = alt.get_rating(movie)
+				if own != 0 and other != 0:
+					if own == other:
+						yes += 1
+					else:
+						no += 1
+			self.addTo_comparisons(alt,yes,no)
+		return None
+
+	def build_trustworthy(self):
+		for alt in self.comparisons:
+			if self.get_comparison(alt) > glo.trustThreshold:
+				self.addTo_trustworthy(alt)
+		return None
+
+	def build_projections(self):
+		for movie in self.ratings:
+			if self.get_rating(movie) == 0:
+				yes = 0
+				no = 0
+				for alt in self.trustworthy:
+					other = alt.get_rating(movie)
+					if other == 2:
+						yes += 1
+					if other == 1:
+						no += 1
+				self.addTo_projections(movie,yes,no)
+		return None
+
+
+
+'''
+Main functions
+'''
+def build_wightSet(names,movies):
+	wightSet = set()
+	for name in names:
+		ratingDict = {movie:choice([0,1,2,2]) for movie in movies}
+		wightSet.add(Wight(name,ratingDict))
+	return wightSet
+
+def update_wights(updateSet):
+	for wight in updateSet:
+		wight.build_comparisons(glo.wightSet)
+		wight.build_trustworthy()
+		wight.build_projections()
+	return None
+
+def return_projection(name,movie):
+	return wight_from_name(name).return_projection(movie)
+
+def return_toWatchList(name):
+	return sort_dict(wight_from_name(name).projections)
+
+def run():
+	glo.wightSet = build_wightSet(glo.names,glo.movies)
+	update_wights(glo.wightSet)
+
+	for wight in glo.wightSet:
+		wight.print_ratings()
+		print('')
+	print ('\n'*3)
+	for wight in glo.wightSet:
+		wight.print_comparisons()
+		print('')
+	print ('\n'*3)
+	for wight in glo.wightSet:
+		wight.print_trustworthy()
+		print('')
+	print ('\n'*3)
+	for wight in glo.wightSet:
+		wight.print_projections()
+		print('')
+	print ('\n'*3)
+	for wight in glo.wightSet:
+		print(wight.name,glo.nameToWight[wight.name].name)
+		print('')
+	print ('\n'*3)
+
+	return None
+
+
+
+'''
+Helper functions
+'''
+def wight_from_name(wightName):
+	try:
+		wight = glo.nameToWight[wightName]
+	except:
+		return None
+	return wight
+
+def sort_dict(sDict,sField=1,revBool=True):
+	sList = [(u,sDict[u]) for u in sDict]
+	return sorted(sList,key=lambda u: u[sField],reverse=revBool)
