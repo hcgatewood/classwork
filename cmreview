@@ -1,0 +1,340 @@
+'''
+Crowdsourced Movie Review
+Algorithm testing
+cmreview.py
+by hcgatewood
+
+Notes:
+Fix return_toWatchList
+Add tags for movie ratings
+Add GUI ratings input
+'''
+
+import csv
+from random import choice
+
+'''
+Classes
+'''
+class Globals:
+	def __init__(self):
+		self.ratingCodes = {
+				0:'Hate it',1:'Like it',2:'Love it',-1:"Haven't seen it"}
+		self.nameToWight = dict()
+		self.seenItString = "You've already rated this title"
+		self.F_HATE = -5
+		self.F_LIKE = 1
+		self.F_LOVE = 3
+		self.trustThreshold = .5
+		self.ratingComparisons = {
+				(0,0): 2,
+				(0,1): -1,
+				(0,2): -3,
+				(0,None): 0,
+				(1,0): -1,
+				(1,1): 0,
+				(1,2): 1,
+				(1,None): 0,
+				(2,0): -3,
+				(2,1): 1,
+				(2,2): 2,
+				(2,None): 0,
+				(None,0): 0,
+				(None,1): 0,
+				(None,2): 0,
+				(None,None): 0}
+
+
+class Wight:
+	def __init__(self,name,ratingDict):
+		self.name = name
+		self.ratings = ratingDict # Dict in form {[movieName]:[intRating]}
+		self.comparisons = dict() # Dict in form {[Wight].name:percentage}
+		self.trustworthy = set() # Set of Wight classes
+		self.projections = dict() # Dict in form {[movieName]:[floatRating]}
+		self.projectionsSeen = dict()
+		self.projectionsUnseen = dict()
+
+	def get_rating(self,movie):
+		return self.ratings[movie]
+
+	def get_comparison(self,altName):
+		return self.comparisons[altName]
+
+	def get_projection(self,movie,projKey='fond'):
+		'''Return projection for given movie the current Wight instance.
+
+		Tags:
+		'all': return tuple (hate,like,love,fondnessMetric)
+		'hate': return hate
+		'like': return like
+		'love': return love
+		'fond': return fondnessMetric
+		'''
+		if projKey == 'all': return self.projections[movie]
+		if projKey == 'hate': return self.projections[movie][0]
+		if projKey == 'like': return self.projections[movie][1]
+		if projKey == 'love': return self.projections[movie][2]
+		if projKey == 'fond': return self.projections[movie][3]
+
+	def get_unseen(self):
+		return [movie for movie in self.ratings if self.get_rating(movie)==0]
+
+	def addTo_comparisons(self,altWight,agreeMetric):
+		self.comparisons[altWight] = agreeMetric
+		return None
+
+	def addTo_trustworthy(self,altWight):
+		self.trustworthy.add(altWight)
+		return None
+
+	def addTo_projections(self,movie,hate,like,love,fondnessMetric):
+		self.projections[movie] = (hate,like,love,fondnessMetric)
+		if movie in self.get_unseen():
+			self.projectionsUnseen[movie] = (hate,like,love,fondnessMetric)
+		else:
+			self.projectionsSeen[movie] = (hate,like,love,fondnessMetric)
+		return None
+
+	def print_ratings(self):
+		print(self.name,': ',self.ratings,sep='')
+		return None
+
+	def print_comparisons(self):
+		comp = {
+				wight.name:self.get_comparison(wight)
+				for wight in self.comparisons}
+		print (self.name,': ',comp,sep='')
+		return None
+
+	def print_trustworthy(self):
+		nameList = [wight.name for wight in self.trustworthy]
+		print (self.name,': ',nameList,sep='')
+		return None
+
+	def print_projections(self,tag='all'):
+		'''Print projections for the Wight instance.
+
+		Tags:
+		'all': print projections for all movies
+		'seen': print projections for seen movies only
+		'unseen': print projections for unseen movies only
+		'''
+		if tag == 'all': proj = self.projections
+		elif tag == 'seen': proj = self.projectionsSeen
+		elif tag == 'unseen': proj = self.projectionsUnseen
+		print(self.name,': ',proj,sep='')
+		return None
+
+	def print_all(self):
+		print('Ratings:')
+		self.print_ratings()
+		print('')
+		print('Comparisons:')
+		self.print_comparisons()
+		print('')
+		print('Trustworthy:')
+		self.print_trustworthy()
+		print('')
+		print('Projections')
+		self.print_projections()
+		print('')
+		return None
+
+	def return_projection(self,movie):
+		return self.projections[movie]
+
+	def return_toWatchList(self):
+		unsorted = [movie in self.ratings for self.get_rating(movie) != -1]
+
+	def build_comparisons(self,wightSet):
+		for alt in wightSet:
+			sharedCount = 0
+			compareMetric = 0
+			for movie in self.ratings:
+				own = self.get_rating(movie)
+				other = alt.get_rating(movie)
+				if own != -1 and other != -1:
+					sharedCount += 1
+					compareMetric += glo.ratingComparisons[(own,other)]
+			if sharedCount != 0:
+				agreeMetric = compareMetric/sharedCount
+			else:
+				agreeMetric = 0
+			self.addTo_comparisons(alt,agreeMetric)
+		return None
+
+	def build_trustworthy(self):
+		for alt in self.comparisons:
+			if self.get_comparison(alt) > glo.trustThreshold:
+				self.addTo_trustworthy(alt)
+		return None
+
+	def build_projections(self):
+		for movie in self.ratings:
+			ratingCount = 0
+			hate = 0
+			like = 0
+			love = 0
+			fondnessMetric = 0
+			for alt in self.trustworthy:
+				other = alt.get_rating(movie)
+				if other != -1: ratingCount += 1
+				if other == 0: hate += 1
+				if other == 1: like += 1
+				if other == 2: love += 1
+			fHate = hate*glo.F_HATE
+			fLike = like*glo.F_LIKE
+			fLove = love*glo.F_LOVE
+			if ratingCount != 0:
+				fondnessMetric = .5 + (fHate+fLike+fLove)/ratingCount
+			else: fondnessMetric = 0
+			self.addTo_projections(movie,hate,like,love,fondnessMetric)
+		return None
+
+
+class WightSet():
+	def __init__(self,fileName):
+		wightInfo = self.import_csvWightInfo(
+				'C:\\Users\\huntergatewood\\Desktop\\cm_ratings.csv')
+		self.members = self.build_wightSet(wightInfo)
+		self.update_wights(self.members)
+		self.nameToWightInstance = self.build_nameToWightInstance()
+
+	def import_csvWightInfo(self,fileName):
+		'''Import wight info from csv file; return list of tuples 
+		in the form: (name,ratingDict)
+		'''
+		with open(fileName) as csvfile:
+			wightInfo = list()
+			rawData = list(csv.reader(csvfile))
+		movies = rawData[0][1:]
+		ratingData = rawData[2:]
+		for ratingList in ratingData:
+			ratingDict = dict()
+			name = ratingList[0]
+			for u in range(1,len(ratingList)):
+				movie = movies[u-1]
+				rating = ratingList[u]
+				try:
+					rating = int(rating)
+				except:
+					rating = None
+				ratingDict[movie] = rating
+			wightInfo.append((name,ratingDict))
+		return wightInfo
+
+	def build_wightSet(self,infoList):
+		'''Return a set of Wight instances from infoList'''
+		wightSet = set()
+		for wight in infoList:
+			name = wight[0]
+			if name == 'None': name = None
+			ratingDict = wight[1]
+			wightSet.add(Wight(name,ratingDict))
+		return wightSet
+
+	def update_wights(self,updateSet):
+		for wight in updateSet:
+			wight.build_comparisons(self.members)
+			wight.build_trustworthy()
+			wight.build_projections()
+		return None
+
+	def build_nameToWightInstance(self):
+		nameToWight = dict()
+		for member in self.members:
+			nameToWight[member.name] = member
+		return nameToWight
+
+	def instance_from_name(self,wightName):
+		'''Return name attribute from wight instance, if possible.'''
+		try:
+			wight = self.nameToWightInstance[wightName]
+		except:
+			return None
+		return wight
+
+	def return_projection(self,name,movie):
+		return self.instance_from_name(name).return_projection(movie)
+
+	def return_toWatchList(self,name):
+		return self.instance_from_name(name).return_toWatchList()
+
+	def print_ratings(self):
+		printList = list()
+		for wight in self.members:
+			printList.append(wight)
+		printList.sort()
+		for wight in printList:
+			wight.print_ratings()
+			print('')
+		print('\n'*3)
+
+	def print_comparisons(self):
+		printList = list()
+		for wight in self.members:
+			printList.append(wight)
+		printList.sort()
+		for wight in printList:
+			wight.print_comparisons()
+			print('')
+
+	def print_trustworthy(self):
+		printList = list()
+		for wight in self.members:
+			printList.append(wight)
+		printList.sort()
+		for wight in printList:
+			wight.print_trustworthy()
+			print('')
+
+	def print_projections(self,tag='all'):
+		'''Print projections for the WightSet instance.
+
+		Tags:
+		'all': print projections for all movies
+		'seen': print only projections for seen movies
+		'unseen': print only projections for unseen movies
+		'''
+		for wight in self.members:
+			wight.print_projections(tag)
+			print('')
+
+	def print_all(self):
+		print('RATINGS:')
+		self.print_ratings()
+		print('\n'*3,'COMPARISONS:',sep='')
+		self.print_comparisons()
+		print('\n'*3,'TRUSTWORTHY:',sep='')
+		self.print_trustworthy()
+		print('\n'*3,'PROJECTIONS',sep='')
+		self.print_projections()
+		return None
+
+'''
+Main functions
+'''
+glo = Globals()
+
+def run():
+	s_clear()
+	glo = Globals()
+	wightSet = WightSet(
+			'C:\\Users\\huntergatewood\\Desktop\\cm_ratings.csv')
+	wightSet.print_all()
+	wightSet.instance_from_name('Hunter').print_all()
+	return None
+
+
+'''
+Helper functions
+'''
+def sort_dict(sDict,sField=1,revBool=True):
+	'''Return sorted version of inputted sDict.'''
+	sList = [(u,sDict[u]) for u in sDict]
+	return sorted(sList,key=lambda u: u[sField],reverse=revBool)
+
+def s_clear():
+	print('\n'*5)
+	return None
