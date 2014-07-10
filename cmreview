@@ -5,13 +5,17 @@ cmreview.py
 by hcgatewood
 
 Notes:
-Fix return_toWatchList
-Add tags for movie ratings
+get additional data
+convert movies to class and print list
+create profile class and siteuser class
+move data from csv file to sql
 Add GUI ratings input
+add front-end projection metric converting to percentage on [0%,100%]
+get movie data from imdb
 '''
 
 import csv
-from random import choice
+import math
 
 '''
 Classes
@@ -20,24 +24,28 @@ class Globals:
 	def __init__(self):
 		self.ratingCodes = {
 				0:'Hate it',1:'Like it',2:'Love it',-1:"Haven't seen it"}
-		self.nameToWight = dict()
+		self.R_HATE = 0
+		self.R_LIKE = 1
+		self.R_LOVE = 2
+		self.R_UNSEEN = -1
 		self.seenItString = "You've already rated this title"
 		self.F_HATE = -5
 		self.F_LIKE = 1
 		self.F_LOVE = 3
-		self.trustThreshold = .5
+		self.TRUST_PERCENT = .15
+		self.TRUST_MIN = 5
 		self.ratingComparisons = {
-				(0,0): 2,
-				(0,1): -1,
-				(0,2): -3,
+				(0,0): 5,
+				(0,1): -3,
+				(0,2): -5,
 				(0,None): 0,
-				(1,0): -1,
+				(1,0): -3,
 				(1,1): 0,
 				(1,2): 1,
 				(1,None): 0,
-				(2,0): -3,
+				(2,0): -5,
 				(2,1): 1,
-				(2,2): 2,
+				(2,2): 5,
 				(2,None): 0,
 				(None,0): 0,
 				(None,1): 0,
@@ -49,11 +57,12 @@ class Wight:
 	def __init__(self,name,ratingDict):
 		self.name = name
 		self.ratings = ratingDict # Dict in form {[movieName]:[intRating]}
-		self.comparisons = dict() # Dict in form {[Wight].name:percentage}
+		self.comparisons = dict() # Dict in form {[Wight inst]:compareMetric}
 		self.trustworthy = set() # Set of Wight classes
-		self.projections = dict() # Dict in form {[movieName]:[floatRating]}
+		self.projections = dict() # Dict in form {[movieName]:[projMetric]}
 		self.projectionsSeen = dict()
 		self.projectionsUnseen = dict()
+		self.toWatchList = list() #Ordered list of projectionsUnseen
 
 	def get_rating(self,movie):
 		return self.ratings[movie]
@@ -78,7 +87,9 @@ class Wight:
 		if projKey == 'fond': return self.projections[movie][3]
 
 	def get_unseen(self):
-		return [movie for movie in self.ratings if self.get_rating(movie)==0]
+		return [
+				movie for movie in self.ratings
+				if self.get_rating(movie)==glo.R_UNSEEN]
 
 	def addTo_comparisons(self,altWight,agreeMetric):
 		self.comparisons[altWight] = agreeMetric
@@ -97,19 +108,27 @@ class Wight:
 		return None
 
 	def print_ratings(self):
-		print(self.name,': ',self.ratings,sep='')
+		sortList = [
+				(movie,self.get_rating(movie))
+				for movie in self.ratings]
+		printList = sorted(sortList,key=lambda u:u[1],reverse=True)
+		print (self.name,': ',printList,sep='')
 		return None
 
 	def print_comparisons(self):
-		comp = {
-				wight.name:self.get_comparison(wight)
-				for wight in self.comparisons}
-		print (self.name,': ',comp,sep='')
+		sortList = [
+				(alt.name,self.get_comparison(alt))
+				for alt in self.comparisons]
+		printList = sorted(sortList,key=lambda u:u[1],reverse=True)
+		print (self.name,': ',printList,sep='')
 		return None
 
 	def print_trustworthy(self):
-		nameList = [wight.name for wight in self.trustworthy]
-		print (self.name,': ',nameList,sep='')
+		sortList = [
+				(alt.name,self.get_comparison(alt))
+				for alt in self.trustworthy]
+		printList = sorted(sortList,key=lambda u:u[1],reverse=True)
+		print (self.name,': ',printList,sep='')
 		return None
 
 	def print_projections(self,tag='all'):
@@ -123,10 +142,18 @@ class Wight:
 		if tag == 'all': proj = self.projections
 		elif tag == 'seen': proj = self.projectionsSeen
 		elif tag == 'unseen': proj = self.projectionsUnseen
-		print(self.name,': ',proj,sep='')
+		sortList = [
+				(movie,self.get_projection(movie))
+				for movie in self.ratings]
+		printList = sorted(sortList,key=lambda u:u[1],reverse=True)
+		print (self.name,': ',printList,sep='')
 		return None
 
+	def print_toWatchList(self):
+		print(self.name,': ',self.toWatchList,sep='')
+
 	def print_all(self):
+		print(self.name.upper(),':',sep='')
 		print('Ratings:')
 		self.print_ratings()
 		print('')
@@ -139,13 +166,13 @@ class Wight:
 		print('Projections')
 		self.print_projections()
 		print('')
+		print('To Watch List:')
+		self.print_toWatchList()
+		print('\n'*2)
 		return None
 
 	def return_projection(self,movie):
 		return self.projections[movie]
-
-	def return_toWatchList(self):
-		unsorted = [movie in self.ratings for self.get_rating(movie) != -1]
 
 	def build_comparisons(self,wightSet):
 		for alt in wightSet:
@@ -165,9 +192,14 @@ class Wight:
 		return None
 
 	def build_trustworthy(self):
-		for alt in self.comparisons:
-			if self.get_comparison(alt) > glo.trustThreshold:
-				self.addTo_trustworthy(alt)
+		comparisonList = [
+				(wight,self.get_comparison(wight))
+				for wight in self.comparisons]
+		orderedAlt = sorted(comparisonList,key=lambda u:u[1],reverse=True)
+		altCount = len(orderedAlt)
+		trustCount = math.ceil(altCount*glo.TRUST_PERCENT)
+		for u in range(max(trustCount,glo.TRUST_MIN)):
+			self.addTo_trustworthy(orderedAlt[u][0])
 		return None
 
 	def build_projections(self):
@@ -180,26 +212,35 @@ class Wight:
 			for alt in self.trustworthy:
 				other = alt.get_rating(movie)
 				if other != -1: ratingCount += 1
-				if other == 0: hate += 1
-				if other == 1: like += 1
-				if other == 2: love += 1
+				if other == glo.R_HATE: hate += 1
+				if other == glo.R_LIKE: like += 1
+				if other == glo.R_LOVE: love += 1
 			fHate = hate*glo.F_HATE
 			fLike = like*glo.F_LIKE
 			fLove = love*glo.F_LOVE
 			if ratingCount != 0:
-				fondnessMetric = .5 + (fHate+fLike+fLove)/ratingCount
+				fondnessMetric = (fHate+fLike+fLove)/ratingCount
 			else: fondnessMetric = 0
 			self.addTo_projections(movie,hate,like,love,fondnessMetric)
 		return None
 
+	def build_toWatchList(self):
+		unseen = self.get_unseen()
+		unsorted = [(movie,self.get_projection(movie)) for movie in unseen]
+		self.toWatchList = sorted(unsorted,key=lambda u:u[1],reverse=True)
+		return None	
 
-class WightSet():
+
+class WightSet:
+	'''Set of Wight instances with operable functions.'''
 	def __init__(self,fileName):
 		wightInfo = self.import_csvWightInfo(
 				'C:\\Users\\huntergatewood\\Desktop\\cm_ratings.csv')
 		self.members = self.build_wightSet(wightInfo)
-		self.update_wights(self.members)
-		self.nameToWightInstance = self.build_nameToWightInstance()
+		self.nameToWightInstance = dict()
+		self.orderedWightList = list()
+		self.update_all(self.members)
+
 
 	def import_csvWightInfo(self,fileName):
 		'''Import wight info from csv file; return list of tuples 
@@ -213,7 +254,7 @@ class WightSet():
 		for ratingList in ratingData:
 			ratingDict = dict()
 			name = ratingList[0]
-			for u in range(1,len(ratingList)):
+			for u in range(1,len(movies)+1):
 				movie = movies[u-1]
 				rating = ratingList[u]
 				try:
@@ -229,23 +270,33 @@ class WightSet():
 		wightSet = set()
 		for wight in infoList:
 			name = wight[0]
-			if name == 'None': name = None
 			ratingDict = wight[1]
 			wightSet.add(Wight(name,ratingDict))
 		return wightSet
 
-	def update_wights(self,updateSet):
+	def update_all(self,updateSet):
 		for wight in updateSet:
 			wight.build_comparisons(self.members)
 			wight.build_trustworthy()
 			wight.build_projections()
+			wight.build_toWatchList()
+			self.build_nameToWightInstance()
+			self.build_orderedWightList()
 		return None
 
 	def build_nameToWightInstance(self):
 		nameToWight = dict()
 		for member in self.members:
 			nameToWight[member.name] = member
-		return nameToWight
+		self.nameToWightInstance = nameToWight
+		return None
+
+	def build_orderedWightList(self):
+		printList = list()
+		for wight in self.members:
+			printList.append(wight)
+		self.orderedWightList = sorted(printList,key=lambda u:u.name)	
+		return None	
 
 	def instance_from_name(self,wightName):
 		'''Return name attribute from wight instance, if possible.'''
@@ -258,36 +309,23 @@ class WightSet():
 	def return_projection(self,name,movie):
 		return self.instance_from_name(name).return_projection(movie)
 
-	def return_toWatchList(self,name):
-		return self.instance_from_name(name).return_toWatchList()
-
 	def print_ratings(self):
-		printList = list()
-		for wight in self.members:
-			printList.append(wight)
-		printList.sort()
-		for wight in printList:
+		for wight in self.orderedWightList:
 			wight.print_ratings()
 			print('')
-		print('\n'*3)
+		return None
 
 	def print_comparisons(self):
-		printList = list()
-		for wight in self.members:
-			printList.append(wight)
-		printList.sort()
-		for wight in printList:
+		for wight in self.orderedWightList:
 			wight.print_comparisons()
 			print('')
+		return None
 
 	def print_trustworthy(self):
-		printList = list()
-		for wight in self.members:
-			printList.append(wight)
-		printList.sort()
-		for wight in printList:
+		for wight in self.orderedWightList:
 			wight.print_trustworthy()
 			print('')
+		return None
 
 	def print_projections(self,tag='all'):
 		'''Print projections for the WightSet instance.
@@ -297,9 +335,16 @@ class WightSet():
 		'seen': print only projections for seen movies
 		'unseen': print only projections for unseen movies
 		'''
-		for wight in self.members:
+		for wight in self.orderedWightList:
 			wight.print_projections(tag)
 			print('')
+		return None
+
+	def print_toWatchList(self):
+		for wight in self.orderedWightList:
+			wight.print_toWatchList()
+			print('')
+		return None
 
 	def print_all(self):
 		print('RATINGS:')
@@ -310,8 +355,21 @@ class WightSet():
 		self.print_trustworthy()
 		print('\n'*3,'PROJECTIONS',sep='')
 		self.print_projections()
+		print('\n'*3,'TO WATCH LIST',sep='')
+		self.print_toWatchList()
+		print('\n'*3)
 		return None
 
+
+class Movie:
+	def __init__(movieName,releaseDate,genresList,runTime,metascore):
+		self.name = movieName
+		self.releaseDate = releaseDate
+		self.genres = genresList
+		self.runTime = runTime
+		self.metascore = metascore
+		self.avgWightScore = 0
+		self.percentile = None
 '''
 Main functions
 '''
@@ -324,17 +382,13 @@ def run():
 			'C:\\Users\\huntergatewood\\Desktop\\cm_ratings.csv')
 	wightSet.print_all()
 	wightSet.instance_from_name('Hunter').print_all()
+	wightSet.instance_from_name('Matt').print_all()
 	return None
 
 
 '''
 Helper functions
 '''
-def sort_dict(sDict,sField=1,revBool=True):
-	'''Return sorted version of inputted sDict.'''
-	sList = [(u,sDict[u]) for u in sDict]
-	return sorted(sList,key=lambda u: u[sField],reverse=revBool)
-
 def s_clear():
 	print('\n'*5)
 	return None
