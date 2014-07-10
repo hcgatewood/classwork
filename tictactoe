@@ -1,5 +1,6 @@
 '''
 Python Shell Tic-Tac-Toe
+tictactoe.py
 by hcgatewood
 '''
 
@@ -10,7 +11,8 @@ X,O = 'X','O'
 
 prompt = ['prompt','PROMPT']
 end = ['end','END']
-yes = ['yes','Yes','YES','y','Y','YeS','YEs','yES','yeS']
+yes = ['yes','Yes','YES','y','Y','YeS','YEs','yES','yeS',None]
+no = ['no','No','NO','n','N','nO']
 l = '|'
 o = '_'
 ooooo = '_____'
@@ -95,7 +97,9 @@ class UI:
         print('')
         print(winner, 'wins!')
         print('')
-        again = input('Play again? ')
+        again = 0
+        while again not in yes and again not in no:
+            again = input('Play again? ')
         print('')
         print('')
         print('')
@@ -164,7 +168,7 @@ def end_game():
     print('')
 
 def clear():
-    print('','','','','',sep='\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+    print('\n'*80)
 
 #final global
 N,n = new_game,new_game
