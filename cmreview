@@ -5,6 +5,7 @@ cmreview.py
 by hcgatewood
 
 Notes:
+fix fileName omission in WightSet __init__()
 get additional data
 convert movies to class and print list
 create profile class and siteuser class
