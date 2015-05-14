@@ -1,0 +1,12 @@
+INT=1
+FLOAT=2
+VAR=3
+TIMES=4
+PLUS=5
+OPEN=6
+CLOSE=7
+WHITESPACE=8
+'*'=4
+'+'=5
+'('=6
+')'=7
