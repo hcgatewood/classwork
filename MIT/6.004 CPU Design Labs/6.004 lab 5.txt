@@ -1,0 +1,233 @@
+// Include the checkoff program:
+.include "/shared/bsim/lab5checkoff.uasm"
+
+// Leave the following as zero to run ALL the test cases, and get your solution
+//   validated if all pass.  If you have trouble with test case N, set it to N
+//   to run JUST that test case (for easier debugging):
+TestCase:	LONG(0)
+
+// Quicksort-in-place code.  We include the C/Python version here as a comment;
+// you can use this as a model for your Beta assembly version:
+
+//def partition(array,left,right):
+//    # choose middle element of array as pivot
+//    pivotIndex = (left+right) >> 1;
+//    pivotValue = array[pivotIndex]
+//
+//    # swap array[right] and array[pivotIndex]
+//    # note that we already store array[pivotIndex] in pivotValue
+//    array[pivotIndex] = array[right]
+//
+//    # elements <= the pivot are moved to the left (smaller indices)
+//    storeIndex = left
+//    for i in xrange(left,right):  # don't include array[right]
+//        temp = array[i]
+//        if temp <= pivotValue:
+//            array[i] = array[storeIndex]
+//            array[storeIndex] = temp
+//            storeIndex += 1
+//
+//    # move pivot to its final place
+//    array[right] = array[storeIndex]
+//    array[storeIndex] = pivotValue;
+//    return storeIndex;
+
+// handling *4 indexing inside of partition, not inside of quicksort
+partition:
+	p_array = R1
+	p_left = R2
+  	p_right = R3
+  	p_pivotIndex = R4
+  	p_pivotValue = R5
+  	p_storeIndex = R6
+	p_i = R7
+	p_temp = R8
+	p_offset = R9
+	
+	// entry sequence
+	PUSH(LP)
+	PUSH(BP)
+	MOVE(SP,BP)
+	PUSH(R1)
+	PUSH(R2)
+	PUSH(R3)
+	PUSH(R4)
+	PUSH(R5)
+	PUSH(R6)
+	PUSH(R7)
+	PUSH(R8)
+	PUSH(R9)
+	
+	// assign arguments
+	LD(BP,-12,p_array)
+	LD(BP,-16,p_left)
+	LD(BP,-20,p_right)
+	
+	// fix memory indexing
+	MULC(p_left,4,p_left)
+	MULC(p_right,4,p_right)
+	
+//    # choose middle element of array as pivot
+//    pivotIndex = (left+right) >> 1;
+//    pivotValue = array[pivotIndex]
+
+	ADD(p_left,p_right,R0)
+	SHRC(R0,1,p_pivotIndex)
+	ADD(p_array,p_pivotIndex,p_offset)
+	LD(p_offset,0,p_pivotValue)
+	
+//    # swap array[right] and array[pivotIndex]
+//    # note that we already store array[pivotIndex] in pivotValue
+//    array[pivotIndex] = array[right]
+	ADD(p_array,p_right,p_offset)
+	LD(p_offset,0,R0)
+	ADD(p_pivotIndex,p_array,p_offset)
+	ST(R0,0,p_offset)
+
+//    # elements <= the pivot are moved to the left (smaller indices)
+//    storeIndex = left
+//    for i in xrange(left,right):  # don't include array[right]
+//        temp = array[i]
+//        if temp <= pivotValue:
+//            array[i] = array[storeIndex]
+//            array[storeIndex] = temp
+//            storeIndex += 1
+
+	// initialize storeIndex and i
+	MOVE(p_left,p_storeIndex)
+	MOVE(p_left,p_i)
+ploop:
+	ADD(p_array,p_i,p_offset)
+	LD(p_offset,0,p_temp)
+	// temp<=pivotValue
+	CMPLE(p_temp,p_pivotValue,R0)
+	BEQ(R0,if_partition,R31)
+	
+	ADD(p_array,p_storeIndex,p_offset)	
+	LD(p_offset,0,R0)
+	ADD(p_i,p_array,p_offset)
+	ST(R0,0,p_offset)
+	ADD(p_storeIndex,p_array,p_offset)
+	ST(p_temp,0,p_offset)
+	ADDC(p_storeIndex,4,p_storeIndex)
+	
+if_partition:
+	ADDC(p_i,4,p_i)
+	CMPLT(p_i,p_right,R0)
+	BNE(R0,ploop,R31)
+
+//    # move pivot to its final place
+//    array[right] = array[storeIndex]
+//    array[storeIndex] = pivotValue;
+//    return storeIndex;
+	ADD(p_array,p_storeIndex,p_offset)
+	LD(p_offset,0,R0)
+	ADD(p_right,p_array,p_offset)
+	ST(R0,0,p_offset)
+	ADD(p_storeIndex,p_array,p_offset)
+	ST(p_pivotValue,0,p_offset)
+	
+	// revert memory indexing
+	DIVC(p_storeIndex,4,p_storeIndex)
+
+	// return sequence
+	MOVE(p_storeIndex,R0)
+	POP(R9)
+	POP(R8)
+	POP(R7)
+	POP(R6)
+	POP(R5)
+	POP(R4)
+	POP(R3)
+	POP(R2)
+	POP(R1)
+	MOVE(BP,SP)
+	POP(BP)
+	POP(LP)
+	JMP(LP)
+
+
+//def quicksort(array, left, right):
+//    if left < right:
+//        pivotIndex = partition(array,left,right)
+//        quicksort(array,left,pivotIndex-1)
+//        quicksort(array,pivotIndex+1,right)
+
+// quicksort(ArrayBase, left, right)
+quicksort:
+	p_array = R1
+	p_left = R2
+  	p_right = R3
+	p_pivotIndex = R4
+	
+	//entry sequence
+	PUSH(LP)
+	PUSH(BP)
+	MOVE(SP,BP)
+	PUSH(R1)
+	PUSH(R2)
+	PUSH(R3)
+	PUSH(R4)
+	
+	// assign values
+	LD(BP,-12,p_array)
+	LD(BP,-16,p_left)
+	LD(BP,-20,p_right)
+	CMOVE(0,p_pivotIndex)
+	
+	
+//    if left < right:
+	CMPLT(p_left,p_right,R0)
+	BEQ(R0,if_quicksort,R31)
+	
+//        pivotIndex = partition(array,left,right)
+	// branch to partition, with array,left,right as descending args in stack
+	// entry sequence
+	PUSH(p_right)
+	PUSH(p_left)
+	PUSH(p_array)
+	BR(partition,LP)
+	DEALLOCATE(3)
+	MOVE(R0,p_pivotIndex)
+
+//        quicksort(array,left,pivotIndex-1)
+	// entry sequence
+	SUBC(p_pivotIndex,1,R0)
+	PUSH(R0)
+	PUSH(p_left)
+	PUSH(p_array)
+	BR(quicksort,LP)
+	DEALLOCATE(3)
+	
+//        quicksort(array,pivotIndex+1,right)
+	// entry sequence
+	ADDC(p_pivotIndex,1,R0)
+	PUSH(p_right)
+	PUSH(R0)
+	PUSH(p_array)
+	BR(quicksort,LP)
+	DEALLOCATE(3)
+	
+if_quicksort:
+	// return sequence
+	MOVE(p_array,R0)
+	POP(R4)
+	POP(R3)
+	POP(R2)
+	POP(R1)
+	MOVE(BP,SP)
+	POP(BP)
+	POP(LP)
+	JMP(LP)
+
+// Allocate a stack: SP is initialized by checkoff code.
+StackBasePtr:
+	LONG(StackArea)
+
+.unprotect
+
+StackArea:
+	STORAGE(1000)
+
+
+

@@ -1,0 +1,133 @@
+.include "/shared/bsim/beta.uasm"
+.include "/shared/bsim/lab7macros.uasm"
+
+// test jig
+.include "/shared/bsim/lab7checkoff.uasm"
+
+// Handler for opcode 1 extension:
+// swapreg(RA,RC) swaps the contents of the two named registers.
+// UASM defn = .macro swapreg(RA,RC) betaopc(0x01,RA,0,RC)
+
+regs:   RESERVE(32)					// Array used to store register contents
+
+UI: 
+        save_all_regs(regs)
+        LD(xp,-4,r0)				// r0 <- illegal instruction
+        extract_field(r0,31,26,r1)	// r1 <- extract opcode (bits 31:26)
+        CMPEQC(r1,16,r2)			// OPCODE=010000 (LDB)?
+        BNE(r2,ldb)					// yes, handle the ldb instruction.
+		CMPEQC(r1,17,r2)			// OPCODE=010001 (STB)?
+		BNE(r2,stb)					// yes, handle the stb instruction
+
+        LD(r31,regs,r0)				// Its something else.  Restore regs
+		LD(r31,regs+4,r1)			// we've used, and go to the system's
+        LD(r31,regs+8,r2)			// Illegal Instruction handler.
+        BR(_IllegalInstruction)
+
+ldb:
+        extract_field(r0,20,16,r1)	// r1 <- ra
+		MULC(r1,4,r1)
+		ADDC(r1,regs,r1)
+		LD(r1,0,r1)					// r1 <- ra_value
+        extract_field(r0,15,0,r2)   // r2 <- literal
+		SHLC(r2,16,r2)
+		SRAC(r2,16,r2)				// r2 <- SEXT(literal)
+		
+		ADD(r1,r2,r3)				// r3 (EA) <- ra_value + literal
+		LD(r3,0,r4)					// r4 (MDATA) <- Mem[EA]
+		
+		extract_field(r3,1,0,r5)	// r5 (EA_1:0) <- EA[1:0]
+		BEQ(r5,ldb_ea_0b00,r31)
+		SUBC(r5,1,r5)
+		BEQ(r5,ldb_ea_0b01,r31)
+		SUBC(r5,1,r5)
+		BEQ(r5,ldb_ea_0b10,r31)
+		SUBC(r5,1,r5)
+		BEQ(r5,ldb_ea_0b11,r31)
+		
+	ldb_ea_0b00:
+		extract_field(r4,7,0,r8)	// r8 <- MDATA[7:0]
+		BR(ldb_rc_assign)
+	ldb_ea_0b01:
+		extract_field(r4,15,8,r8)	// r8 <- MDATA[15:8]
+		BR(ldb_rc_assign)
+	ldb_ea_0b10:
+		extract_field(r4,23,16,r8)	// r8 <- MDATA[23:16]
+		BR(ldb_rc_assign)
+	ldb_ea_0b11:
+		extract_field(r4,31,24,r8)	// r8 <- MDATA[31:24]
+		BR(ldb_rc_assign)
+		
+	ldb_rc_assign:
+		extract_field(r0,25,21,r9)	// r9 <- rc
+		MULC(r9,4,r9)
+        ST(r8,regs,r9)				// Reg[rc] <- rc_value
+		
+		restore_all_regs(regs)
+		JMP(xp)
+        
+		
+stb:
+        extract_field(r0,20,16,r1)	// r1 <- ra
+		MULC(r1,4,r1)
+		ADDC(r1,regs,r1)
+		LD(r1,0,r1)					// r1 <- ra_value
+        extract_field(r0,15,0,r2)   // r2 <- literal
+		SHLC(r2,16,r2)
+		SRAC(r2,16,r2)				// r2 <- SEXT(literal)
+		
+		ADD(r1,r2,r3)				// r3 (EA) <- ra_value + literal
+		LD(r3,0,r4)					// r4 (MDATA) <- Mem[EA]
+		
+		extract_field(r4,7,0,r10)	// r10 <- MDATA[7:0]
+		extract_field(r4,15,8,r11)	// r11 <- MDATA[15:8]
+		extract_field(r4,23,16,r12)	// r12 <- MDATA[23:16]
+		extract_field(r4,31,24,r13)	// r13 <- MDATA[31:24]
+		
+		extract_field(r0,25,21,r8)	// r8 <- rc
+		MULC(r8,4,r8)
+		ADDC(r8,regs,r8)
+		LD(r8,0,r8)					// r8 <- rc_value
+		SHLC(r8,24,r8)
+		SHRC(r8,24,r8)				// r8 <- rc_value[7:0]		
+		
+		extract_field(r3,1,0,r5)	// r5 (EA_1:0) <- EA[1:0]		
+		BEQ(r5,stb_ea_0b00,r31)
+		SUBC(r5,1,r5)
+		BEQ(r5,stb_ea_0b01,r31)
+		SUBC(r5,1,r5)
+		BEQ(r5,stb_ea_0b10,r31)
+		SUBC(r5,1,r5)
+		BEQ(r5,stb_ea_0b11,r31)
+		
+	stb_ea_0b00:
+		MOVE(r8,r10)				// r10 <- rc_value[7:0]
+		BR(stb_memory_assign)
+	stb_ea_0b01:
+		MOVE(r8,r11)				// r11 <- rc_value[7:0]
+		BR(stb_memory_assign)
+	stb_ea_0b10:
+		MOVE(r8,r12)				// r12 <- rc_value[7:0]
+		BR(stb_memory_assign)
+	stb_ea_0b11:
+		MOVE(r8,r13)				// r13 <- rc_value[7:0]
+		BR(stb_memory_assign)
+		
+	stb_memory_assign:
+		SHLC(r11,8,r11)
+		SHLC(r12,16,r12)
+		SHLC(r13,24,r13)			// accounting for offsets
+		
+		ADD(r10,r11,r11)
+		ADD(r12,r13,r12)
+		ADD(r11,r12,r12)			// fan-in add of r10,11,12,13 values
+
+		ST(r12,0,r3)				// Reg[rc] <- rc_value		
+		
+        restore_all_regs(regs)
+        JMP(xp)
+
+_IllegalInstruction:
+        // code to handle an actual illegal instruction goes here...
+        // for Lab #7, this code is supplied by lab7checkoff.uasm
+        HALT()

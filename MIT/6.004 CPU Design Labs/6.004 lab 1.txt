@@ -1,0 +1,19 @@
+// set up power supply node and logic thresholds
+.global vdd
+VDD vdd gnd 1v
+.options vil=0.2 vih=0.8
+
+.include "/shared/jsim/lab1checkoff.jsim"
+
+// ... you can define other subcircuits (eg, INV or NAND gates) here ...
+
+.subckt F A B C Z
+P1 vdd A b
+P2 vdd B b
+P3 b C c
+P4 vdd c Z
+N1 a A c
+N2 gnd B a
+N3 gnd C c
+N4 gnd c Z
+.ends

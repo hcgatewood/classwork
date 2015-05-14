@@ -1,0 +1,80 @@
+.subckt INV1 a z
+N1 z a gnd
+P1 z a vdd
+.ends
+
+.subckt XOR2 a b z
+P1 n1 a vdd
+P2 z xout n1
+P3 n1 b vdd
+N1 z a n2
+N2 n2 b gnd
+N3 z xout gnd
+Xnor NOR2 a b xout
+.ends
+
+.subckt NAND2 a b z
+P1 z a vdd
+P2 z b vdd
+N1 z a n1
+N2 n1 b gnd
+.ends
+
+.subckt AND2 a b z
+Xnand NAND2 a b n1
+Xinv INV1 n1 z
+.ends
+
+.subckt NOR2 a b z
+P1 n1 a vdd
+P2 z b n1
+N1 z a gnd
+N2 z b gnd
+.ends
+
+.subckt OR2 a b z
+Xnor NOR2 a b n1
+Xinv INV1 n1 z
+.ends
+
+.subckt FA a b ci s co
+Xxor1 XOR2 a b n1
+Xxor2 XOR2 n1 ci s
+Xnand1 NAND2 a b n2
+Xnand2 NAND2 a ci n3
+Xnand3 NAND2 b ci n4
+Xnand4 NAND2 n5 n4 co
+Xand1 AND2 n2 n3 n5
+.ends
+
+.subckt ADDER3 a2 a1 a0 b2 b1 b0 s3 s2 s1 s0
+Xfa1 FA a0 b0 gnd s0 c0
+Xfa2 FA a1 b1 c0 s1 c1
+Xfa3 FA a2 b2 c1 s2 s3
+.ends
+
+
+
+// set up power supply node and logic thresholds
+.global vdd
+VDD vdd gnd 1.0v
+.options vil=0.2 vih=0.8
+
+.include "/shared/jsim/lab2checkoff.jsim"
+
+// 3-bit ripple-carry adder
+.subckt adder3 a[2:0] b[2:0] s[3:0]
+// nodes c[1:0] are local to the subcircuit.
+// assumes FA subckt expects A, B, Cin, S, Cout in that order
+X1 FA a[0] b[0] gnd  s[0] c[0]
+X2 FA a[1] b[1] c[0] s[1] c[1]
+X3 FA a[2] b[2] c[1] s[2] s[3]
+
+// note that the three lines above could have
+// been written as a single JSim line:
+// Xall FA a[2:0] b[2:0] c[1:0] gnd s[2:0] s[3] c[1:0]
+.ends
+
+
+
+

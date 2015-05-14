@@ -1,0 +1,196 @@
+// set up power supply node and logic thresholds
+.global vdd
+VDD vdd gnd 1.0v
+.options vil=0.2 vih=0.8
+
+.include "/shared/jsim/stdcell.jsim"
+.include "/shared/jsim/lab3checkoff_10.jsim"
+
+//user-implemented subckts
+.subckt FA a b ci s co
+xxor1 xor2 a b n1
+xxor2 xor2 n1 ci s
+xnand1 nand2 a b n2
+xnand2 nand2 a ci n3
+xnand3 nand2 b ci n4
+xnand4 nand2 n5 n4 co
+xand1 and2 n2 n3 n5
+.ends
+
+.subckt adder32 A[31:0] B[31:0] alufn[0] S[31:0]
+xinitial_add FA A[31:0] B[31:0] CO[30:0]+alufn[0] S[31:0] CO[31:0]
+.ends
+
+.subckt nor32 A[31:0] OUT
+//improve by using hierarchical fan-in,
+//using nors/nands/invs instead of ors
+xnor_init or2 A[31] A[30] o[30]
+xnor_finalize or2 o[30:1] A[29:0] o[29:0]
+xinv inverter o[0] OUT
+.ends
+
+.subckt overflow_detect A B S OUT
+xa1 and2 A B n1
+xi1 inverter S n2
+xno1 nor2 A B n3
+xna1 nand2 n1 n2 n4
+xna2 nand2 n3 S n5
+xna3 nand2 n4 n5 OUT
+.ends
+
+.subckt sum_of_products32 A[31:0] B[31:0] OUT[31:0]
+//improve by changing FA-OUT indexing to remove
+//the need for buffers
+xan0 and2 A[31:0] B[0]#32 d[31:0][0]
+xan1 and2 A[30:0] B[1]#31 d[31:1][1]
+xan2 and2 A[29:0] B[2]#30 d[31:2][2]
+xan3 and2 A[28:0] B[3]#29 d[31:3][3]
+xan4 and2 A[27:0] B[4]#28 d[31:4][4]
+xan5 and2 A[26:0] B[5]#27 d[31:5][5]
+xan6 and2 A[25:0] B[6]#26 d[31:6][6]
+xan7 and2 A[24:0] B[7]#25 d[31:7][7]
+xan8 and2 A[23:0] B[8]#24 d[31:8][8]
+xan9 and2 A[22:0] B[9]#23 d[31:9][9]
+xan10 and2 A[21:0] B[10]#22 d[31:10][10]
+xan11 and2 A[20:0] B[11]#21 d[31:11][11]
+xan12 and2 A[19:0] B[12]#20 d[31:12][12]
+xan13 and2 A[18:0] B[13]#19 d[31:13][13]
+xan14 and2 A[17:0] B[14]#18 d[31:14][14]
+xan15 and2 A[16:0] B[15]#17 d[31:15][15]
+xan16 and2 A[15:0] B[16]#16 d[31:16][16]
+xan17 and2 A[14:0] B[17]#15 d[31:17][17]
+xan18 and2 A[13:0] B[18]#14 d[31:18][18]
+xan19 and2 A[12:0] B[19]#13 d[31:19][19]
+xan20 and2 A[11:0] B[20]#12 d[31:20][20]
+xan21 and2 A[10:0] B[21]#11 d[31:21][21]
+xan22 and2 A[9:0] B[22]#10 d[31:22][22]
+xan23 and2 A[8:0] B[23]#9 d[31:23][23]
+xan24 and2 A[7:0] B[24]#8 d[31:24][24]
+xan25 and2 A[6:0] B[25]#7 d[31:25][25]
+xan26 and2 A[5:0] B[26]#6 d[31:26][26]
+xan27 and2 A[4:0] B[27]#5 d[31:27][27]
+xan28 and2 A[3:0] B[28]#4 d[31:28][28]
+xan29 and2 A[2:0] B[29]#3 d[31:29][29]
+xan30 and2 A[1:0] B[30]#2 d[31:30][30]
+xan31 and2 A[0:0] B[31]#1 d[31:31][31]
+
+xfa0 FA d[31:1][0] d[31:1][1] c[30:1][1]+gnd f[31:1][1] c[31:1][1]
+xfa1 FA f[31:2][1] d[31:2][2] c[30:2][2]+gnd f[31:2][2] c[31:2][2]
+xfa2 FA f[31:3][2] d[31:3][3] c[30:3][3]+gnd f[31:3][3] c[31:3][3]
+xfa3 FA f[31:4][3] d[31:4][4] c[30:4][4]+gnd f[31:4][4] c[31:4][4]
+xfa4 FA f[31:5][4] d[31:5][5] c[30:5][5]+gnd f[31:5][5] c[31:5][5]
+xfa5 FA f[31:6][5] d[31:6][6] c[30:6][6]+gnd f[31:6][6] c[31:6][6]
+xfa6 FA f[31:7][6] d[31:7][7] c[30:7][7]+gnd f[31:7][7] c[31:7][7]
+xfa7 FA f[31:8][7] d[31:8][8] c[30:8][8]+gnd f[31:8][8] c[31:8][8]
+xfa8 FA f[31:9][8] d[31:9][9] c[30:9][9]+gnd f[31:9][9] c[31:9][9]
+xfa9 FA f[31:10][9] d[31:10][10] c[30:10][10]+gnd f[31:10][10] c[31:10][10]
+xfa10 FA f[31:11][10] d[31:11][11] c[30:11][11]+gnd f[31:11][11] c[31:11][11]
+xfa11 FA f[31:12][11] d[31:12][12] c[30:12][12]+gnd f[31:12][12] c[31:12][12]
+xfa12 FA f[31:13][12] d[31:13][13] c[30:13][13]+gnd f[31:13][13] c[31:13][13]
+xfa13 FA f[31:14][13] d[31:14][14] c[30:14][14]+gnd f[31:14][14] c[31:14][14]
+xfa14 FA f[31:15][14] d[31:15][15] c[30:15][15]+gnd f[31:15][15] c[31:15][15]
+xfa15 FA f[31:16][15] d[31:16][16] c[30:16][16]+gnd f[31:16][16] c[31:16][16]
+xfa16 FA f[31:17][16] d[31:17][17] c[30:17][17]+gnd f[31:17][17] c[31:17][17]
+xfa17 FA f[31:18][17] d[31:18][18] c[30:18][18]+gnd f[31:18][18] c[31:18][18]
+xfa18 FA f[31:19][18] d[31:19][19] c[30:19][19]+gnd f[31:19][19] c[31:19][19]
+xfa19 FA f[31:20][19] d[31:20][20] c[30:20][20]+gnd f[31:20][20] c[31:20][20]
+xfa20 FA f[31:21][20] d[31:21][21] c[30:21][21]+gnd f[31:21][21] c[31:21][21]
+xfa21 FA f[31:22][21] d[31:22][22] c[30:22][22]+gnd f[31:22][22] c[31:22][22]
+xfa22 FA f[31:23][22] d[31:23][23] c[30:23][23]+gnd f[31:23][23] c[31:23][23]
+xfa23 FA f[31:24][23] d[31:24][24] c[30:24][24]+gnd f[31:24][24] c[31:24][24]
+xfa24 FA f[31:25][24] d[31:25][25] c[30:25][25]+gnd f[31:25][25] c[31:25][25]
+xfa25 FA f[31:26][25] d[31:26][26] c[30:26][26]+gnd f[31:26][26] c[31:26][26]
+xfa26 FA f[31:27][26] d[31:27][27] c[30:27][27]+gnd f[31:27][27] c[31:27][27]
+xfa27 FA f[31:28][27] d[31:28][28] c[30:28][28]+gnd f[31:28][28] c[31:28][28]
+xfa28 FA f[31:29][28] d[31:29][29] c[30:29][29]+gnd f[31:29][29] c[31:29][29]
+xfa29 FA f[31:30][29] d[31:30][30] c[30][30]+gnd f[31:30][30] c[31:30][30]
+xfa30 FA f[31][30] d[31][31] gnd f[31][31] c[31][31]
+
+xb0 buffer d[0][0] OUT[0]
+xb1 buffer f[1][1] OUT[1]
+xb2 buffer f[2][2] OUT[2]
+xb3 buffer f[3][3] OUT[3]
+xb4 buffer f[4][4] OUT[4]
+xb5 buffer f[5][5] OUT[5]
+xb6 buffer f[6][6] OUT[6]
+xb7 buffer f[7][7] OUT[7]
+xb8 buffer f[8][8] OUT[8]
+xb9 buffer f[9][9] OUT[9]
+xb10 buffer f[10][10] OUT[10]
+xb11 buffer f[11][11] OUT[11]
+xb12 buffer f[12][12] OUT[12]
+xb13 buffer f[13][13] OUT[13]
+xb14 buffer f[14][14] OUT[14]
+xb15 buffer f[15][15] OUT[15]
+xb16 buffer f[16][16] OUT[16]
+xb17 buffer f[17][17] OUT[17]
+xb18 buffer f[18][18] OUT[18]
+xb19 buffer f[19][19] OUT[19]
+xb20 buffer f[20][20] OUT[20]
+xb21 buffer f[21][21] OUT[21]
+xb22 buffer f[22][22] OUT[22]
+xb23 buffer f[23][23] OUT[23]
+xb24 buffer f[24][24] OUT[24]
+xb25 buffer f[25][25] OUT[25]
+xb26 buffer f[26][26] OUT[26]
+xb27 buffer f[27][27] OUT[27]
+xb28 buffer f[28][28] OUT[28]
+xb29 buffer f[29][29] OUT[29]
+xb30 buffer f[30][30] OUT[30]
+xb31 buffer f[31][31] OUT[31]
+.ends
+
+
+//ALU subckts
+.subckt BOOL alufn[3:0] A[31:0] B[31:0] OUT[31:0]
+xbool mux4 A[31:0] B[31:0] alufn[0]#32 alufn[1]#32 alufn[2]#32 alufn[3]#32 OUT[31:0]
+.ends
+
+.subckt ARITH alufn[1:0] A[31:0] B[31:0] OUT[31:0] Z V N
+xnegation xor2 B[31:0] alufn[0]#32 XB[31:0]
+xadd adder32 A[31:0] XB[31:0] alufn[0] S[31:0]
+xmult sum_of_products32 A[31:0] B[31:0] M[31:0]
+xsum_or_prod mux2 alufn[1]#32 S[31:0] M[31:0] OUT[31:0]
+
+xz nor32 S[31:0] Z
+xv overflow_detect A[31] XB[31] S[31] V
+xn buffer S[31] N
+.ends
+
+.subckt SHIFT alufn[1:0] A[31:0] B[4:0] OUT[31:0]
+xsra and3 alufn[1] alufn[0] A[31] sra
+xmr1 mux2 alufn[0]#32 A[31:0] A[0:31] XA[31:0]
+xm1 mux2 B[4]#32 XA[31:0] XA[15:0]+sra#16 W[31:0]
+xm2 mux2 B[3]#32 W[31:0] W[23:0]+sra#8 X[31:0]
+xm3 mux2 B[2]#32 X[31:0] X[27:0]+sra#4 Y[31:0]
+xm4 mux2 B[1]#32 Y[31:0] Y[29:0]+sra#2 Z[31:0]
+xm5 mux2 B[0]#32 Z[31:0] Z[30:0]+sra#1 S[31:0]
+xmr2 mux2 alufn[0]#32 S[31:0] S[0:31] O[31:0]
+xout_lower30 buffer O[30:0] OUT[30:0]
+xout_31 or2 O[31] sra OUT[31]
+.ends
+
+.subckt CMP alufn[3] alufn[1] Z V N OUT[31:0]
+xhigh_order constant0 OUT[31:1]
+xinv inverter alufn[3:1:2] alufn_i[3:1:2]
+xxor xor2 N V nxv
+xor1 or2 nxv Z n1
+xna1 nand3 alufn_i[3] alufn_i[1] Z n2
+xna2 nand3 alufn_i[3] alufn[1] nxv n3
+xna3 nand3 alufn[3] alufn_i[1] n1 n4
+xna4 nand3 n2 n3 n4 OUT[0]
+.ends
+
+.subckt alu alufn[4:0] a[31:0] b[31:0] out[31:0] z v n
+
+/// Generate outputs from each of BOOL, SHIFT, ARITH, CMP subcircuits:
+xbool BOOL alufn[3:0] a[31:0] b[31:0] boolout[31:0]
+xshift SHIFT alufn[1:0] a[31:0] b[4:0] shiftout[31:0]
+xarith ARITH alufn[1:0] a[31:0] b[31:0] arithout[31:0] z v n
+xcmp CMP alufn[3] alufn[1] z v n cmpout[31:0]
+
+// Combine them, using three multiplexors:
+xmux1 mux2 alufn[4]#32 nonbool[31:0] boolout[31:0] out[31:0]
+xmux2 mux2 alufn[2]#32 arithshift[31:0] cmpout[31:0] nonbool[31:0]
+xmux3 mux2 alufn[3]#32 arithout[31:0] shiftout[31:0] arithshift[31:0]
+.ends

@@ -1,0 +1,47 @@
+// Parenthesis matcher Turing Machine
+// test tapes and checkoff information
+ 
+checkoff "https://6004.mit.edu/ssldocs/6004xassignment.doit" "Lab #4" -363188037
+
+/*
+symbols: 0 indicates matched right paren,
+1 indicates matched left paren or (in some cases) a matched right paren,
+L masks an unmatched left paren, R masks a matched right paren */
+symbols ( ) 0 1 L R
+states lfL lfR
+
+tape test1 (
+result1 test1 0
+
+tape test2 )
+result1 test2 0
+
+tape test3 ( )
+result1 test3 1
+
+tape test4 ) (
+result1 test4 0
+
+tape test5 ( ( ( )
+result1 test5 0
+
+tape test6 ( ) ( ( ( ) ( ( ( ) ) ( ) ) )
+result1 test6 0
+
+tape test7 ( ( ( ( ( ( ) ( ( ) ) ) ) ) ) )
+result1 test7 1
+
+//state lfL = looking for Left paren
+action lfL 0 lfL 1 r
+action lfL 1 lfL 1 l
+action lfL - *halt* 1 -
+action lfL ( lfR 1 l
+action lfL ) *halt* 0 -
+action lfL L lfL ( r
+action lfL R lfL 0 r
+
+//state lfR = looking for Right paren
+action lfR 0 lfR R l
+action lfR - *halt* 0 -
+action lfR ( lfR L l
+action lfR ) lfL 0 r

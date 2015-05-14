@@ -1,0 +1,61 @@
+// alu
+
+// .include "helper_circuits"
+
+// ALU subckts
+.subckt BOOL alufn[3:0] A[31:0] B[31:0] OUT[31:0]
+xbool mux4 A[31:0] B[31:0] alufn[0]#32 alufn[1]#32 alufn[2]#32 alufn[3]#32 OUT[31:0]
+.ends
+
+.subckt ARITH alufn[1:0] A[31:0] B[31:0] OUT[31:0] Z V N
+xnegation xor2 B[31:0] alufn[0]#32 XB[31:0]
+xadd adder32 A[31:0] XB[31:0] alufn[0] OUT[31:0]
+// xmult sum_of_products32 A[31:0] B[31:0] M[31:0]
+// xsum_or_prod mux2 alufn[1]#32 S[31:0] M[31:0] OUT[31:0]
+// xsum_or_prod mux2 alufn[1]#32 S[31:0] gnd#32 OUT[31:0]
+// To add these back in, also change all OUT[31:0] to S[31:0]
+
+xz nor32 OUT[31:0] Z
+xv overflow_detect A[31] XB[31] OUT[31] V
+xn buffer OUT[31] N
+.ends
+
+.subckt SHIFT alufn[1:0] A[31:0] B[4:0] OUT[31:0]
+xsra and3 alufn[1] alufn[0] A[31] sra
+xmr1 mux2 alufn[0]#32 A[31:0] A[0:31] XA[31:0]
+xm1 mux2 B[4]#32 XA[31:0] XA[15:0]+sra#16 W[31:0]
+xm2 mux2 B[3]#32 W[31:0] W[23:0]+sra#8 X[31:0]
+xm3 mux2 B[2]#32 X[31:0] X[27:0]+sra#4 Y[31:0]
+xm4 mux2 B[1]#32 Y[31:0] Y[29:0]+sra#2 Z[31:0]
+xm5 mux2 B[0]#32 Z[31:0] Z[30:0]+sra#1 S[31:0]
+xmr2 mux2 alufn[0]#32 S[31:0] S[0:31] O[31:0]
+xout_lower30 buffer O[30:0] OUT[30:0]
+xout_31 or2 O[31] sra OUT[31]
+.ends
+
+.subckt CMP alufn[3] alufn[1] Z V N OUT[31:0]
+xhigh_order constant0 OUT[31:1]
+xinv inverter alufn[3:1:2] alufn_i[3:1:2]
+xxor xor2 N V nxv
+xor1 or2 nxv Z n1
+xna1 nand3 alufn_i[3] alufn_i[1] Z n2
+xna2 nand3 alufn_i[3] alufn[1] nxv n3
+xna3 nand3 alufn[3] alufn_i[1] n1 n4
+xna4 nand3 n2 n3 n4 OUT[0]
+.ends
+
+
+// ALU
+.subckt alu alufn[4:0] a[31:0] b[31:0] out[31:0] z v n
+
+/// Generate outputs from each of BOOL, SHIFT, ARITH, CMP subcircuits:
+xbool BOOL alufn[3:0] a[31:0] b[31:0] boolout[31:0]
+xshift SHIFT alufn[1:0] a[31:0] b[4:0] shiftout[31:0]
+xarith ARITH alufn[1:0] a[31:0] b[31:0] arithout[31:0] z v n
+xcmp CMP alufn[3] alufn[1] z v n cmpout[31:0]
+
+// Combine them, using three multiplexers:
+xmux1 mux2 alufn[4]#32 nonbool[31:0] boolout[31:0] out[31:0]
+xmux2 mux2 alufn[2]#32 arithshift[31:0] cmpout[31:0] nonbool[31:0]
+xmux3 mux2 alufn[3]#32 arithout[31:0] shiftout[31:0] arithshift[31:0]
+.ends

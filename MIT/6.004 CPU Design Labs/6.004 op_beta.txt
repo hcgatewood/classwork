@@ -1,0 +1,197 @@
+// Design Lab: optimized beta processor
+
+.include "helper_circuits"
+.include "alu"
+
+// PC
+.subckt pc clk reset pcsel[2:0] pcoff_i[31:0] jt_i[31:0]
++ ia_next[31:0] ia[31:0] p4[31:0]
+
+xsup_p4 buffer ia[31] p4[31]
+xsup_pcoff buffer ia[31] pcoff[31]
+xsup_jt mux2 ia[31] gnd jt_i[31] jt[31]
+
+xbot_p4 buffer p4_i[30:2]+gnd#2 p4[30:0]
+xbot_pcoff buffer pcoff_i[30:2]+gnd#2 pcoff[30:0]
+xbot_jt buffer jt_i[30:2]+gnd#2 jt[30:0]
+
+xaddress_reset constant1 address_reset[31]
+xar_gnd constant0 address_reset[30:0]
+xaddress_illop constant1 address_illop[31]+address_illop[2]
+xai_gnd constant0 address_illop[30:3]+address_illop[1:0]
+xaddress_XAdr constant1 address_XAdr[31]+address_XAdr[3]
+xax_gnd constant0 address_XAdr[30:4]+address_XAdr[2:0]
+
+xpcsel mux5 pcsel[0]#32 pcsel[1]#32 pcsel[2]#32
++ p4[31:0] pcoff[31:0] jt[31:0] address_illop[31:0] address_XAdr[31:0] mout[31:0]
+
+xreset mux2 reset#32 mout[31:0] address_reset[31:0] rout[31:0]
+xia_next buffer rout[31:0] ia_next[31:0]
+
+xPCreg dreg rout[31:0] clk#32 ia[31:0]
+xPCplus4 add32_constant4 ia[31:0] p4_i[31:0]
+.ends
+
+// REGFILE
+.subckt regfile clk werf ra2sel ra[4:0] rb[4:0] rc[4:0] waddr[4:0] wdata[31:0]
++ radata[31:0] rbdata[31:0]
+
+xra2sel mux2 ra2sel#5 rb[4:0] rc[4:0] ra2mux[4:0]
+
+Gregfile memory
++ vdd gnd gnd  ra[4:0]     adata[31:0] // A read port
++ vdd gnd gnd  ra2mux[4:0] bdata[31:0] // B read port
++ gnd clk werf waddr[4:0]     wdata[31:0] // write port
++ width=32 nlocations=31
+
+xra32sel and5 ra[4:0] ra32sel
+xrb32sel and5 ra2mux[4:0] rb32sel
+xradata mux2 ra32sel#32 adata[31:0] gnd#32 radata[31:0]
+xrbdata mux2 rb32sel#32 bdata[31:0] gnd#32 rbdata[31:0]
+.ends
+
+// CTL
+.subckt ctl reset ia[31] id[31:26] z_logic irq
++ pcsel[2:0] wasel asel ra2sel bsel alufn[4:0] wdsel[1:0] werf moe wr
+
+Gctl memory vdd gnd gnd id[31:26]	// one read port
++ pcsel_i[2:0] wasel_i asel bsel alufn[4:0] wdsel_i[1:0] werf_i moe xwr
++ width=16 nlocations=64 contents=(
++  0b0110000000000000      // opcode=0b000000
++  0b0110000000000000      // opcode=0b000001
++  0b0110000000000000      // opcode=0b000010
++  0b0110000000000000      // opcode=0b000011
++  0b0110000000000000      // opcode=0b000100
++  0b0110000000000000      // opcode=0b000101
++  0b0110000000000000      // opcode=0b000110
++  0b0110000000000000      // opcode=0b000111
++  0b0110000000000000      // opcode=0b001000
++  0b0110000000000000      // opcode=0b001001
++  0b0110000000000000      // opcode=0b001010
++  0b0110000000000000      // opcode=0b001011
++  0b0110000000000000      // opcode=0b001100
++  0b0110000000000000      // opcode=0b001101
++  0b0110000000000000      // opcode=0b001110
++  0b0110000000000000      // opcode=0b001111
++  0b0110000000000000      // opcode=0b010000
++  0b0110000000000000      // opcode=0b010001
++  0b0110000000000000      // opcode=0b010010
++  0b0110000000000000      // opcode=0b010011
++  0b0110000000000000      // opcode=0b010100
++  0b0110000000000000      // opcode=0b010101
++  0b0110000000000000      // opcode=0b010110
++  0b0110000000000000      // opcode=0b010111
++  0b0000010000010110      // opcode=0b011000 LD
++  0b0000010000000001      // opcode=0b011001 ST
++  0b0110000000000000      // opcode=0b011010
++  0b0100000000000100      // opcode=0b011011 JMP
++  0b0000000000000100      // opcode=0b011100 BEQ
++  0b0000000000000100      // opcode=0b011101 BNE
++  0b0110000000000000      // opcode=0b011110
++  0b0000101101010110      // opcode=0b011111 LDR
++  0b0000000000001100      // opcode=0b100000 ADD
++  0b0000000000101100      // opcode=0b100001 SUB
++  0b0000000001001100      // opcode=0b100010 MUL*
++  0b0000000001101100      // opcode=0b100011 DIV*
++  0b0000000010101100      // opcode=0b100100 CMPEQ
++  0b0000000011101100      // opcode=0b100101 CMPLT
++  0b0000000110101100      // opcode=0b100110 CMPLE
++  0b0110000000000000      // opcode=0b100111
++  0b0000001100001100      // opcode=0b101000 AND
++  0b0000001111001100      // opcode=0b101001 OR
++  0b0000001011001100      // opcode=0b101010 XOR
++  0b0000001100101100      // opcode=0b101011 XNOR
++  0b0000000100001100      // opcode=0b101100 SHL
++  0b0000000100101100      // opcode=0b101101 SHR
++  0b0000000101101100      // opcode=0b101110 SRA
++  0b0110000000000000      // opcode=0b101111
++  0b0000010000001100      // opcode=0b110000 ADDC
++  0b0000010000101100      // opcode=0b110001 SUBC
++  0b0000010001001100      // opcode=0b110010 MULC*
++  0b0000010001101100      // opcode=0b110011 DIVC*
++  0b0000010010101100      // opcode=0b110100 CMPEQC
++  0b0000010011101100      // opcode=0b110101 CMPLTC
++  0b0000010110101100      // opcode=0b110110 CMPLEC
++  0b0110000000000000      // opcode=0b110111
++  0b0000011100001100      // opcode=0b111000 ANDC
++  0b0000011111001100      // opcode=0b111001 ORC
++  0b0000011011001100      // opcode=0b111010 XORC
++  0b0000011100101100      // opcode=0b111011 XNORC
++  0b0000010100001100      // opcode=0b111100 SHLC
++  0b0000010100101100      // opcode=0b111101 SHRC
++  0b0000010101101100      // opcode=0b111110 SRAC
++  0b0110000000000000      // opcode=0b111111
++ )
+
+xwr_reset mux2 reset xwr gnd wr_i
+
+// ra2sel = st_true
+xno1 nor3 id[31] id[28] id[27] s1
+xna1 nand3 id[30] id[29] id[26] s2
+xin1 inverter s1 s3
+xno2 nor2 s2 s3 ra2sel
+
+// beq_true, bne_true
+xb_na1 nand3 id[30] id[29] id[28] n1
+xb_or1 or2 id[27] id[31] n2
+xb_no1 nor2 n1 n2 n3
+xb_in1 inverter n3 n4
+xb_an1 and2 n3 id[26] bne_true
+xb_no2 nor2 n4 id[26] beq_true
+
+// pcsel (with irq override)
+xinvz_logic inverter z_logic invz_logic
+xuser_mode inverter ia[31] user_mode
+xinterrupt_true and2 irq user_mode interrupt_true
+xpcsel_beq mux2 beq_true#3 pcsel_i[2:0] gnd#2+z_logic pcsel_j[2:0]
+xpcsel_bne mux2 bne_true#3 pcsel_j[2:0] gnd#2+invz_logic pcsel_k[2:0]
+xpcsel_irq mux2 interrupt_true#3 pcsel_k[2:0] vdd+gnd#2 pcsel[2:0]
+
+// wasel, werf, wdsel
+xillop_initinv inverter pcsel_i[2] illopsel[2]
+xillop_true and3 illopsel[2] pcsel_i[1] pcsel_i[0] illop_true
+xstoppage_true or2 interrupt_true  illop_true stoppage_true
+xwasel mux2 stoppage_true wasel_i vdd wasel
+xwerf mux2 stoppage_true werf_i vdd werf
+xwdsel mux2 stoppage_true#2 wdsel_i[1:0] gnd#2 wdsel[1:0]
+xwr mux2 stoppage_true wr_i gnd wr
+.ends
+
+
+
+// Beta
+.subckt beta clk reset irq ia_next[31:0] id[31:0]
++ ma[31:0] moe mrd[31:0] wr mwd[31:0]
+// main components
+xPC pc clk reset pcsel[2:0] pcoff[31:0] jt[31:0]
++ ia_next[31:0] ia[31:0] p4[31:0]
+xCTL ctl reset ia[31] id[31:26] z_logic irq
++ pcsel[2:0] wasel asel ra2sel_i bsel alufn[4:0] wdsel[1:0] werf moe wr_i
+xREG regfile clk werf ra2sel id[20:16] id[15:11] id[25:21] waddr[4:0] wdata[31:0]
++ radata[31:0] rbdata[31:0]
+xALU alu alufn[4:0] aluin_a[31:0] aluin_b[31:0]
++ aluout[31:0] alu_z alu_v alu_n
+
+// buffering logic
+xra2sel_buff buffer_8 ra2sel_i ra2sel
+
+// additional logic
+xwr mux2 reset wr_i gnd wr
+xjt buffer radata[31:0] jt[31:0]
+xz_logic nor32 radata[31:0] z_logic
+xpcoff CS_add32 p4[31:0] id[15]#14+id[15:0]+gnd#2 gnd pcoff[31:0]
+xwasel mux2 wasel#5 id[25:21] vdd#4+gnd waddr[4:0]
+xma buffer aluout[31:0] ma[31:0]
+xmwd buffer rbdata[31:0] mwd[31:0]
+
+xasel mux2 asel#32 radata[31:0] gnd+pcoff[30:0] aluin_a[31:0]
+xbsel mux2 bsel#32 rbdata[31:0] id[15]#16+id[15:0] aluin_b[31:0]
+xwdsel mux4 wdsel[0]#32 wdsel[1]#32
++ p4[31:0] aluout[31:0] mrd[31:0] gnd#32 wdata[31:0]
+
+// gmem tristate
+xmrd_mwd tristate wr#32 mwd[31:0] mrd[31:0]
+.ends
+
+
+

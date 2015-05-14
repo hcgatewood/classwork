@@ -1,0 +1,125 @@
+// helper circuits
+
+.subckt FA a b ci s co
+xxor1 xor2 a b n1
+xxor2 xor2 n1 ci s
+xnand1 nand2 a b n2
+xnand2 nand2 a ci n3
+xnand3 nand2 b ci n4
+xnand4 nand2 n5 n4 co
+xand1 and2 n2 n3 n5
+.ends
+
+.subckt add32 A[31:0] B[31:0] S[31:0]
+xFA32 FA A[31:0] B[31:0] co[30:0]+gnd S[31:0] co[31:0]
+.ends
+
+.subckt p_add5 A[4:0] B[4:0] CI S[4:0] co[4]
+xFA5 FA A[4:0] B[4:0] co[3:0]+CI S[4:0] co[4:0]
+.ends
+.subckt p_add7 A[6:0] B[6:0] CI S[6:0] co[6]
+xFA7 FA A[6:0] B[6:0] co[5:0]+CI S[6:0] co[6:0]
+.ends
+.subckt p_add9 A[8:0] B[8:0] CI S[8:0] co[8]
+xFA9 FA A[8:0] B[8:0] co[7:0]+CI S[8:0] co[8:0]
+.ends
+.subckt p_add11 A[10:0] B[10:0] CI S[10:0] co[10]
+xFA11 FA A[10:0] B[10:0] co[9:0]+CI S[10:0] co[10:0]
+.ends
+
+.subckt CS_add32 A[31:0] B[31:0] CI S[31:0]
+xadd_5 p_add5 A[4:0] B[4:0] CI S[4:0] co_5
+xadd_70 p_add7 A[11:5] B[11:5] gnd s_70[11:5] co_70
+xadd_71 p_add7 A[11:5] B[11:5] vdd s_71[11:5] co_71
+xadd_90 p_add9 A[20:12] B[20:12] gnd s_90[20:12] co_90
+xadd_91 p_add9 A[20:12] B[20:12] vdd s_91[20:12] co_91
+xadd_110 p_add11 A[31:21] B[31:21] gnd s_110[31:21] co_110
+xadd_111 p_add11 A[31:21] B[31:21] vdd s_111[31:21] co_111
+xbuff_5 buffer_2 co_5 co_5_b
+xbuff_7 buffer_2 co_7 co_7_b
+xbuff_9 buffer_2 co_9 co_9_b
+xsum_7 mux2 co_5_b#7 s_70[11:5] s_71[11:5] S[11:5]
+xsum_9 mux2 co_7_b#9 s_90[20:12] s_91[20:12] S[20:12]
+xsum_11 mux2 co_9_b#11 s_110[31:21] s_111[31:21] S[31:21]
+xco_7 mux2 co_5_b co_70 co_71 co_7
+xco_9 mux2 co_7_b co_90 co_91 co_9
+xco_11 mux2 co_9_b co_110 co_111 co_11
+.ends
+
+.subckt CA a ci s co
+xcarry_out and2 a ci co
+xs xor2 a ci s
+.ends
+
+.subckt p_add5_c A[4:0] CI S[4:0] co[4]
+xFA5 CA A[4:0] co[3:0]+CI S[4:0] co[4:0]
+.ends
+.subckt p_add7_c A[6:0] CI S[6:0] co[6]
+xFA7 CA A[6:0] co[5:0]+CI S[6:0] co[6:0]
+.ends
+.subckt p_add9_c A[8:0] CI S[8:0] co[8]
+xFA9 CA A[8:0] co[7:0]+CI S[8:0] co[8:0]
+.ends
+.subckt p_add11_c A[10:0] CI S[10:0] co[10]
+xFA11 CA A[10:0] co[9:0]+CI S[10:0] co[10:0]
+.ends
+
+.subckt add32_constant4 A[31:0] S[31:0]
+xbuff_lower buffer A[1:0] S[1:0]
+xadd4 FA A[2] vdd gnd S[2] c[2]
+xcheap_add CA A[31:3] c[30:2] S[31:3] c[31:3]
+.ends
+
+.subckt CS_add32_constant4 A[31:0] S[31:0]
+xbuff_lower buffer A[1:0] S[1:0]
+xadd4 FA A[2] vdd gnd S[2] c[3]
+xadd_lower CA A[4:3] c[4:3] S[4:3] co_5+c[4]
+xadd_70 p_add7_c A[11:5] gnd s_70[11:5] co_70
+xadd_71 p_add7_c A[11:5] vdd s_71[11:5] co_71
+xadd_90 p_add9_c A[20:12] gnd s_90[20:12] co_90
+xadd_91 p_add9_c A[20:12] vdd s_91[20:12] co_91
+xadd_110 p_add11_c A[31:21] gnd s_110[31:21] co_110
+xadd_111 p_add11_c A[31:21] vdd s_111[31:21] co_111
+xbuff_5 buffer co_5 co_5_b
+xbuff_7 buffer co_7 co_7_b
+xbuff_9 buffer co_9 co_9_b
+xsum_7 mux2 co_5_b#7 s_70[11:5] s_71[11:5] S[11:5]
+xsum_9 mux2 co_7_b#9 s_90[20:12] s_91[20:12] S[20:12]
+xsum_11 mux2 co_9_b#11 s_110[31:21] s_111[31:21] S[31:21]
+xco_7 mux2 co_5_b co_70 co_71 co_7
+xco_9 mux2 co_7_b co_90 co_91 co_9
+xco_11 mux2 co_9_b co_110 co_111 co_11
+.ends
+
+.subckt and5 in[4:0] out
+xna1 nand2 in[0] in[1] n1
+xna2 nand2 n2 in[4] n3
+xa1 and2 in[2] in[3] n2
+xno1 nor2 n1 n3 out
+.ends
+
+.subckt mux5 sel0 sel1 sel2 in0 in1 in2 in3 in4 out
+xmux4 mux4 sel0 sel1 in0 in1 in2 in3 n1
+xmux2 mux2 sel2 n1 in4 out
+.ends
+
+.subckt adder32 A[31:0] B[31:0] alufn[0] S[31:0]
+xadd CS_add32 A[31:0] B[31:0] alufn[0] S[31:0]
+.ends
+
+.subckt nor32 A[31:0] OUT
+xnor_a nor2 A[31:16] A[15:0] a[15:0]
+xnand_b nand2 a[15:8] a[7:0] b[7:0]
+xnor_c nor2 b[7:4] b[3:0] c[3:0]
+xnand_d nand2 c[3:2] c[1:0] d[1:0]
+xnor_e nor2 d[1] d[0] OUT
+.ends
+
+.subckt overflow_detect A B S OUT
+xa1 and2 A B n1
+xi1 inverter S n2
+xno1 nor2 A B n3
+xna1 nand2 n1 n2 n4
+xna2 nand2 n3 S n5
+xna3 nand2 n4 n5 OUT
+.ends
