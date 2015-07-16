@@ -1,2 +1,2 @@
-hcg_main
+hcg-main
 ========
